@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  server1:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    networks:
+      - integral_network
+    container_name: integral_server1
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+  server2:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    networks:
+      - integral_network
+    container_name: integral_server2
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+  server3:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    networks:
+      - integral_network
+    container_name: integral_server3
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+  client:
+    build:
+      context: .
+      dockerfile: client.Dockerfile
+    networks:
+      - integral_network
+    depends_on:
+      - server1
+      - server2
+      - server3
+    container_name: integral_client
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+networks:
+  integral_network:
+    driver: bridge 
