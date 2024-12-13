@@ -24,11 +24,10 @@ int main() {
         exit(1);
     }
 
-    struct sockaddr_in server_addr = {
-        .sin_family = AF_INET,
-        .sin_addr.s_addr = INADDR_ANY,
-        .sin_port = htons(BROADCAST_PORT)
-    };
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(BROADCAST_PORT);
 
     if (bind(sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
@@ -57,9 +56,8 @@ int main() {
                                    msg.data.task.end, 1000);
             
             msg.type = RESULT;
-            msg.data.result.task_id = msg.data.task.task_id;
             msg.data.result.result = result;
-            
+
             sendto(sock_fd, &msg, sizeof(msg), 0,
                   (struct sockaddr*)&client_addr, client_len);
         }

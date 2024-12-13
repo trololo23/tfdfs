@@ -27,7 +27,6 @@ enum MessageType {
 struct Task {
     double start;
     double end;
-    int task_id;
 };
 
 // Структура результата

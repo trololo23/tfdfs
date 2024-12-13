@@ -47,8 +47,8 @@ sleep 2
 toggle_container integral_server2 stop
 sleep 5
 docker logs integral_client
-toggle_container integral_server1 start
-toggle_container integral_server2 start
+# toggle_container integral_server1 start
+# toggle_container integral_server2 start
 sleep 5
 docker logs integral_client
 docker-compose down

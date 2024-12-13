@@ -1,6 +1,8 @@
 #include "common.h"
+#include <cstdio>
 #include <sys/time.h>
 #include <time.h>
+#include <vector>
 
 struct ServerInfo {
     struct sockaddr_in addr;
@@ -13,11 +15,10 @@ struct ServerInfo servers[MAX_SERVERS];
 int server_count = 0;
 
 void discover_servers(int sock_fd) {
-    struct sockaddr_in broadcast_addr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(BROADCAST_PORT),
-        .sin_addr.s_addr = INADDR_BROADCAST
-    };
+    struct sockaddr_in broadcast_addr;
+    broadcast_addr.sin_family = AF_INET;
+    broadcast_addr.sin_port = htons(BROADCAST_PORT);
+    broadcast_addr.sin_addr.s_addr = INADDR_BROADCAST;
 
     int broadcast_enable = 1;
     setsockopt(sock_fd, SOL_SOCKET, SO_BROADCAST, 
@@ -53,21 +54,21 @@ void discover_servers(int sock_fd) {
     }
 }
 
-void distribute_tasks(int sock_fd, double start, double end) {
+void distribute_tasks(int sock_fd, std::vector<Task>& tasks) {
     if (server_count == 0) {
         printf("No servers available\n");
         return;
     }
 
-    double segment_size = (end - start) / server_count;
     struct Message msg = { .type = TASK };
     
     for (int i = 0; i < server_count; i++) {
         if (servers[i].active) {
-            msg.data.task.start = start + i * segment_size;
-            msg.data.task.end = msg.data.task.start + segment_size;
-            msg.data.task.task_id = i;
-            
+            auto task = tasks.back();
+            tasks.pop_back();
+
+            msg.data.task = task;
+
             servers[i].current_task = msg.data.task;
             servers[i].last_response = time(NULL);
 
@@ -92,11 +93,16 @@ int main() {
 
     double start = 0.0, end = 10.0;
     double total_result = 0.0;
-    int completed_tasks = 0;
 
-    distribute_tasks(sock_fd, start, end);
+    std::vector<Task> tasks;
 
-    while (completed_tasks < server_count) {
+    for (double x = start; x < end; x += 1.0) {
+        tasks.push_back({x, std::min(x + 1.0, end)});
+    }
+
+    distribute_tasks(sock_fd, tasks);
+
+    while (!tasks.empty()) {
         struct Message msg;
         struct sockaddr_in server_addr;
         socklen_t server_len = sizeof(server_addr);
@@ -112,13 +118,7 @@ int main() {
             if (recvfrom(sock_fd, &msg, sizeof(msg), 0,
                         (struct sockaddr*)&server_addr, &server_len) > 0) {
                 if (msg.type == RESULT) {
-                    int task_id = msg.data.result.task_id;
-                    
-                    if (servers[task_id].active) {
-                        total_result += msg.data.result.result;
-                        completed_tasks++;
-                        servers[task_id].active = 0;
-                    }
+                    total_result += msg.data.result.result;
                 }
             }
         } else if (select_result == 0) {
@@ -127,7 +127,8 @@ int main() {
                     time(NULL) - servers[i].last_response > 5) {
                     printf("Server %d timeout\n", i);
                     servers[i].active = 0;
-                    distribute_tasks(sock_fd, start, end);
+                    tasks.push_back(servers[i].current_task);
+                    distribute_tasks(sock_fd, tasks);
                 }
             }
         }
